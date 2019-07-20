@@ -3,7 +3,6 @@ const functions = require('firebase-functions'),
 	cookieParser = require("cookie-parser"),
 	authn = require("./routes/authn"),
 	path = require('path'),
-	utils = require('./helpers/utils'),
 	app = express();
 
 // Set up Middleware

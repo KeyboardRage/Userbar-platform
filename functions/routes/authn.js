@@ -2,7 +2,6 @@ const express = require('express'),
       router = express.Router(),
       jwt = require('jsonwebtoken'),
       firebase = require('firebase-functions'),
-      utils = require('../helpers/utils'),
       request = require('request');
 
 const DISCORD_CLIENT_SECRET = firebase.config().discord.client_secret;
@@ -24,90 +23,73 @@ router.get('/login', (req, res, next) => {
   }
   const discordExchangeUrl = "https://discordapp.com/api/oauth2/token";
 
-  request.post(discordExchangeUrl, {form: formData}, (err, httpResp, body) => {
-    if(err) {
-      res.sendStatus(500).end();
-    }
-    else if(httpResp.statusCode === 200) {
-      if(req.cookies.user) res.clearCookie('user');
-      res.cookie('auth', jwt.sign(body, JWT_SIGN_SECRET), {maxAge: 604800 * 1000})
-      res.redirect('/');
-    } else {
-      res.redirect('/');
-    }
-  });
+  if(req.cookies.__session) {
+	  res.clearCookie("__session");
+  }
 
+  // Get a user's discord oauth token
+  request.post(discordExchangeUrl, {form: formData}, (httpErr, httpResp, httpBody) => {
+	if(httpErr || httpResp.statusCode !== 200) {
+		res.redirect("/");
+	} else {
+		let discordExchangeJson = JSON.parse(httpBody);
+
+		// Get a user's discord data using their token
+		request.get("https://discordapp.com/api/users/@me", {
+			headers: {
+				authorization: `Bearer ${discordExchangeJson.access_token}`
+			}
+		}, (httpErr, httpResp, httpBody) => {
+			if(httpErr || httpResp.statusCode !== 200) {
+				res.redirect("/");
+			} else {
+				// Set user's cookie with their auth and user data
+				let discordUserJson = JSON.parse(httpBody);
+				let jwtAuthPayload = {
+					jwt: jwt.sign({
+						auth: discordExchangeJson, 
+						user: discordUserJson
+					}, JWT_SIGN_SECRET)
+				};
+
+				res.cookie("__session", JSON.stringify(jwtAuthPayload), {maxAge: 604800 * 1000});
+				res.redirect('/');
+			}
+		});
+	}
+  });
 });
 
 
 // Authentication Middleware
-//  Check if a user has valid JWTs which prove their authenticated
-//  set a res.locals.IsAuthd variable accordingly so in further requests
-//  we can check if the user is authenticated easily.
+//  Check if a user has valid JWTs which prove they have been authenticated
+//  set res.local variables to necessary info to check if the 
+//  user is authenticated easily in other routes.
 function authnMiddleware(req, res, next) {
+	sessionCookie = req.cookies.__session;
 
-	if (!req.cookies.auth) {
-		if (req.cookies.user) {
-			res.clearCookie('user');
-		}
+	if(!sessionCookie) {
 		res.locals.IsAuthd = false;
-
 		return next();
-	} else {
-		// Check if the user has a verified auth JWT from us
-		let authToken = jwt.verify(req.cookies.auth, JWT_SIGN_SECRET);
-		if (authToken) {
-			if (req.cookies.user) {
-				// Check if the user has verified user data from us 
-				let userData = jwt.verify(req.cookies.user, JWT_SIGN_SECRET);
-				if (userData) {
-					res.locals.IsAuthd = true;
-					res.locals.User = userData;
-
-					return next();
-				} else {
-					// If the user has an unverified user token make them re-verify their authentication token
-					res.clearCookie("auth");
-					res.clearCookie("user");
-					res.locals.IsAuthd = false;
-
-					return next();
-				}
-			} else {
-				// Create and sign the user data cookie
-				request.get('https://discordapp.com/api/users/@me', {
-					headers: {
-						authorization: `Bearer ${authToken.access_token}`
-					}
-				}, (err, httpResp, body) => {
-					if (err) {
-						res.clearCookie("auth");
-						res.clearCookie("user");
-						res.locals.IsAuthd = false;
-
-						return next();
-					} else {
-						let bodyJson = JSON.parse(body);
-						let jwtPayload = {
-							username: bodyJson.username,
-							id: bodyJson.id,
-							avatar: bodyJson.avatar
-						};
-
-						res.cookie('user', jwt.sign(jwtPayload, JWT_SIGN_SECRET));
-						res.locals.IsAuthd = true;
-						res.locals.User = jwtPayload;
-
-						return next();
-					}
-				});
-			}
-		} else {
-			res.locals.IsAuthd = false;
-
-			return next();
-		}
 	}
+
+	sessionCookieJson = JSON.parse(sessionCookie);
+
+	if(!sessionCookieJson.jwt) {
+		res.locals.IsAuthd = false;
+		return next();
+	}
+
+	let authJson = jwt.verify(sessionCookieJson.jwt, JWT_SIGN_SECRET);
+	if(!authJson) {
+		res.locals.IsAuthd = false;
+		return next();
+	}
+
+	res.locals.IsAuthd = true;
+	res.locals.User = authJson.user;
+	return next();
+
 }
 
 module.exports.router = router;
