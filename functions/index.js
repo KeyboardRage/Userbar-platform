@@ -17,7 +17,6 @@ app.set("view engine", "html");
 // Set up routes
 app.use('/api/authn', authn.router);
 
-
 // All good to go here
 app.get("/", (req,res) => {
 	if(res.locals.IsAuthd) {
