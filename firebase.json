@@ -11,6 +11,9 @@
   "hosting": {
 	"public": "public",
 	"rewrites": [{
+		"source":"/static",
+		"destination":"/static"
+	},{
 		"source": "**",
 		"function": "app"
 	}],

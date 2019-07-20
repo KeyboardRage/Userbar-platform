@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css?family=Montserrat:100,400&display=swap');
+
+body {
+	width: 100vw;
+	height: 100vh;
+	margin: 0;
+	padding: 0;
+	font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+	color: #fefefe;
+	background: #252525 url('/static/images/wood_bg.jpg');
+	background-repeat: no-repeat;
+	background-size: cover;
+}
+
+.splash_screen {
+	display: grid;
+	width: 100%;
+	height: 100%;
+	grid-template-areas: ". . ."". login ."". . .";
+	grid-template-columns: 1fr 30em 1fr;
+	grid-template-rows: 1fr 1fr 1fr;
+}
+
+.login {
+	background: linear-gradient(0deg, rgba(37, 37, 37, 0) 0%, rgba(0, 0, 0, 1) 100%);
+	grid-area: login;
+	text-align: center;
+	padding: 2em;
+	box-sizing: border-box;
+}
+
+.login h1 {
+	margin-bottom: 2em;
+}
+
+.login a {
+	background: none;
+	border: solid thin #fff;
+	color: #fff;
+	padding: 1em 3em;
+	font-size: 1.4em;
+	text-decoration: none;
+	letter-spacing: .06em;
+	font-weight: 100;
+	text-transform: uppercase;
+}
+
+.login a:hover {
+	color: #252525;
+	background: #fff;
+}
