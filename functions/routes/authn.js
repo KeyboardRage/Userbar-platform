@@ -46,60 +46,68 @@ router.get('/login', (req, res, next) => {
 //  we can check if the user is authenticated easily.
 function authnMiddleware(req, res, next) {
 
-  if(!req.cookies.auth) {
-    if(req.cookies.user) {
-      res.clearCookie('user');
-    }
-    res.locals.IsAuthd = false;
+	if (!req.cookies.auth) {
+		if (req.cookies.user) {
+			res.clearCookie('user');
+		}
+		res.locals.IsAuthd = false;
 
-    return next();
-  } else {
-    // Check if the user has a verified auth JWT from us
-    let authToken = jwt.verify(req.cookies.auth, JWT_SIGN_SECRET);
-    if(authToken) {
-      if(req.cookies.user) {
-        // Check if the user has verified user data from us 
-        let userData = jwt.verify(req.cookies.user, JWT_SIGN_SECRET);
-        if(userData) {
-          res.locals.IsAuthd = true;
-          res.locals.User = userData;
+		return next();
+	} else {
+		// Check if the user has a verified auth JWT from us
+		let authToken = jwt.verify(req.cookies.auth, JWT_SIGN_SECRET);
+		if (authToken) {
+			if (req.cookies.user) {
+				// Check if the user has verified user data from us 
+				let userData = jwt.verify(req.cookies.user, JWT_SIGN_SECRET);
+				if (userData) {
+					res.locals.IsAuthd = true;
+					res.locals.User = userData;
 
-          return next();
-        } else {
-          // If the user has an unverified user token make them re-verify their authentication token
-          res.clearCookie("auth");
-          res.clearCookie("user");
-          res.locals.IsAuthd = false;
+					return next();
+				} else {
+					// If the user has an unverified user token make them re-verify their authentication token
+					res.clearCookie("auth");
+					res.clearCookie("user");
+					res.locals.IsAuthd = false;
 
-          return next();
-        }
-      } else {
-        // Create and sign the user data cookie
-        request.get('https://discordapp.com/api/users/@me', {headers: {authorization: `Bearer ${authToken.access_token}`}}, (err, httpResp, body) => {
-          if(err) {
-            res.clearCookie("auth");
-            res.clearCookie("user");
-            res.locals.IsAuthd = false;
-  
-            return next();
-          } else {
-            let bodyJson = JSON.parse(body);
-            let jwtPayload = {username: bodyJson.username, id: bodyJson.id, avatar: bodyJson.avatar};
-            
-            res.cookie('user', jwt.sign(jwtPayload, JWT_SIGN_SECRET));
-            res.locals.IsAuthd = true;
-            res.locals.User = jwtPayload;
+					return next();
+				}
+			} else {
+				// Create and sign the user data cookie
+				request.get('https://discordapp.com/api/users/@me', {
+					headers: {
+						authorization: `Bearer ${authToken.access_token}`
+					}
+				}, (err, httpResp, body) => {
+					if (err) {
+						res.clearCookie("auth");
+						res.clearCookie("user");
+						res.locals.IsAuthd = false;
 
-            return next();
-          }
-        });
-      }
-    } else {
-      res.locals.IsAuthd = false;
+						return next();
+					} else {
+						let bodyJson = JSON.parse(body);
+						let jwtPayload = {
+							username: bodyJson.username,
+							id: bodyJson.id,
+							avatar: bodyJson.avatar
+						};
 
-      return next();
-    }
-  }
+						res.cookie('user', jwt.sign(jwtPayload, JWT_SIGN_SECRET));
+						res.locals.IsAuthd = true;
+						res.locals.User = jwtPayload;
+
+						return next();
+					}
+				});
+			}
+		} else {
+			res.locals.IsAuthd = false;
+
+			return next();
+		}
+	}
 }
 
 module.exports.router = router;
