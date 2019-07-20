@@ -2,6 +2,7 @@ const functions = require('firebase-functions'),
 	express = require("express"),
 	cookieParser = require("cookie-parser"),
 	authn = require("./routes/authn"),
+	path = require('path'),
 	utils = require('./helpers/utils'),
 	app = express();
 
@@ -22,7 +23,7 @@ app.get("/", (req,res) => {
 	if(res.locals.IsAuthd) {
 		res.send(`Hey ${JSON.stringify(res.locals.User)}`).end("OK");
 	} else {
-		res.render(__dirname + '/views/login.html', {oauthUrl: utils.getDiscordOauthUrl(req.get("host"))});
+		res.render(path.join(__dirname, '/views/login.html'), {oauthUrl: functions.config().discord.oauth_url});
 	}
 });
 

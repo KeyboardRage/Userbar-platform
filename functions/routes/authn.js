@@ -7,6 +7,7 @@ const express = require('express'),
 
 const DISCORD_CLIENT_SECRET = firebase.config().discord.client_secret;
 const DISCORD_CLIENT_ID = firebase.config().discord.client_id;
+const DISCORD_REDIRECT_URI = firebase.config().discord.redirect_uri;
 const JWT_SIGN_SECRET = firebase.config().secrets.jwt || 'development_jwt';
 
 // GET /login
@@ -16,7 +17,7 @@ router.get('/login', (req, res, next) => {
   const formData = {
     grant_type: "authorization_code",
     code: req.query.code,
-    redirect_uri: utils.getDiscordRedirectUri(req.get("host")),
+    redirect_uri: DISCORD_REDIRECT_URI,
     client_id: DISCORD_CLIENT_ID,
     client_secret: DISCORD_CLIENT_SECRET,
     scope: "identify"
@@ -51,7 +52,7 @@ function authnMiddleware(req, res, next) {
     }
     res.locals.IsAuthd = false;
 
-    next();
+    return next();
   } else {
     // Check if the user has a verified auth JWT from us
     let authToken = jwt.verify(req.cookies.auth, JWT_SIGN_SECRET);
@@ -63,32 +64,40 @@ function authnMiddleware(req, res, next) {
           res.locals.IsAuthd = true;
           res.locals.User = userData;
 
-          next();
+          return next();
         } else {
           // If the user has an unverified user token make them re-verify their authentication token
           res.clearCookie("auth");
           res.clearCookie("user");
           res.locals.IsAuthd = false;
 
-          next();
+          return next();
         }
       } else {
         // Create and sign the user data cookie
         request.get('https://discordapp.com/api/users/@me', {headers: {authorization: `Bearer ${authToken.access_token}`}}, (err, httpResp, body) => {
-          let bodyJson = JSON.parse(body);
-          let jwtPayload = {username: bodyJson.username, id: bodyJson.id, avatar: bodyJson.avatar};
-          
-          res.cookie('user', jwt.sign(jwtPayload, JWT_SIGN_SECRET));
-          res.locals.IsAuthd = true;
-          res.locals.User = jwtPayload;
+          if(err) {
+            res.clearCookie("auth");
+            res.clearCookie("user");
+            res.locals.IsAuthd = false;
+  
+            return next();
+          } else {
+            let bodyJson = JSON.parse(body);
+            let jwtPayload = {username: bodyJson.username, id: bodyJson.id, avatar: bodyJson.avatar};
+            
+            res.cookie('user', jwt.sign(jwtPayload, JWT_SIGN_SECRET));
+            res.locals.IsAuthd = true;
+            res.locals.User = jwtPayload;
 
-          next();
+            return next();
+          }
         });
       }
     } else {
       res.locals.IsAuthd = false;
 
-      next();
+      return next();
     }
   }
 }
