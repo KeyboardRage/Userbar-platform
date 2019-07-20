@@ -16,6 +16,7 @@ app.set("view engine", "html");
 
 // Set up routes
 app.use('/api/authn', authn.router);
+app.use("/dashboard", require("./routes/dashboard"));
 
 // All good to go here
 app.get("/", (req,res) => {
